@@ -1,0 +1,49 @@
+whatsapp-archive-manager
+├── .gitignore
+├── .myfiles
+│   ├── admin_files
+│   │   ├── extract_files_to_document.py
+│   │   └── extract_folder_structure.py
+│   └── extracts
+│       └── project_structure.txt
+├── .vscode
+│   └── settings.json
+├── LICENSE
+├── README.md
+├── docs
+│   ├── Checklist for Future Changes.md
+│   ├── Learning Resources.md
+│   ├── Project Structure Summary.md
+│   └── Summary.md
+├── main.py
+├── requirements.txt
+├── src
+│   ├── chat_export.py
+│   ├── io
+│   │   ├── __init__.py
+│   │   ├── file_picker.py
+│   │   ├── file_writer.py
+│   │   └── zip_handler.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── chat.py
+│   │   ├── date_range.py
+│   │   └── message.py
+│   ├── parsers
+│   │   ├── __init__.py
+│   │   ├── date_format_detector.py
+│   │   ├── message_parser.py
+│   │   └── sender_extractor.py
+│   ├── renderers
+│   │   ├── __init__.py
+│   │   ├── css_generator.py
+│   │   ├── html_builder.py
+│   │   └── html_renderer.py
+│   ├── utils
+│   │   ├── __init__.py
+│   │   ├── color_utils.py
+│   │   ├── date_utils.py
+│   │   ├── path_utils.py
+│   │   └── string_utils.py
+│   └── validators.py
+└── tests
