@@ -24,9 +24,7 @@ class ChatExportOrchestrator:
     Orchestrates the chat export process.
     Single Responsibility: Coordinate the export workflow.
     """
-    
-    VERSION = "1.0.0"
-    
+
     def __init__(self, zip_path: Path, output_dir: Optional[Path] = None):
         """
         Initialize chat export orchestrator.
