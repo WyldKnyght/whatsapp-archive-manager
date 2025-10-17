@@ -6,16 +6,16 @@ Follows Separation of Concerns - only handles workflow.
 import sys
 import webbrowser
 import traceback
-from pathlib import Path
 from src.chat_export import ChatExportOrchestrator
 from src.io.file_picker import FilePicker
 from src.validators import UserInteraction
 
 VERSION = "1.0.0"
 
+
 def run_interactive():
     """
-    Run the tool in interactive mode with user prompts.    
+    Run the tool in interactive mode with user prompts.
     """
     print(f"Welcome to WhatsApp Archive Manager v{VERSION}")
     print("=" * 50)
@@ -31,6 +31,7 @@ def run_interactive():
         print(traceback.format_exc())
         return False
 
+
 def interactive_workflow():
     # Get ZIP file (uses Windows picker or Tkinter cross-platform GUI)
     zip_path = FilePicker.pick_zip_file()
@@ -39,7 +40,7 @@ def interactive_workflow():
         return False
 
     print(f"\nProcessing: {zip_path}")
-    # Initialize orchestrator (output directory defaults to None or choose your own logic)
+    # Initialize orchestrator (output directory defaults to None)
     orchestrator = ChatExportOrchestrator(zip_path)
     # Setup (detect platform, prepare directories)
     orchestrator.setup()
@@ -66,12 +67,14 @@ def interactive_workflow():
             webbrowser.open(f"file://{file_path.absolute().as_posix()}")
     return True
 
+
 def main():
     """Main entry point."""
     success = run_interactive()
     if not success:
         input("\nPress Enter to exit...")
     sys.exit(0 if success else 1)
+
 
 if __name__ == "__main__":
     main()
