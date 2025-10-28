@@ -17,14 +17,18 @@ whatsapp-archive-manager
 ├── src
 │   ├── __init__.py
 │   ├── configuration_and_enums
+│   │   ├── __init__.py
 │   │   ├── date_formats.py
+│   │   ├── format_detector.py
 │   │   ├── media_type.py
 │   │   └── special_messages.py
 │   ├── data_models
+│   │   ├── __init__.py
 │   │   ├── chat_metadata.py
 │   │   └── message.py
 │   ├── main_orchastrator.py
 │   ├── modules
+│   │   ├── __init__.py
 │   │   ├── date_format_detector.py
 │   │   ├── file_manager.py
 │   │   ├── html_generator.py
@@ -47,5 +51,6 @@ whatsapp-archive-manager
     ├── WhatsApp-Chat-HTML-Converter-main
     │   ├── LICENSE
     │   └── README.md
+    ├── test_format_detector.py
     ├── whatsappChatToHTML.py
     └── whatsapp_refactored.py

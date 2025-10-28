@@ -1,5 +1,5 @@
 from typing import List
-from utils.text_utils import TextUtils
+from src.utils.text_utils import TextUtils
 
 class MessageGrouper:
     """Responsible for grouping lines into messages"""

@@ -4,7 +4,7 @@ import logging.config
 import os
 from typing import Any, Dict, Optional
 from .constants import DEFAULT_LOGGING_CONFIG, DETAILED_LOG_FORMAT, SIMPLE_LOG_FORMAT
-from utils.custom_logging.handlers import DetailedRichHandler
+from src.utils.custom_logging.handlers import RingBuffer, DetailedRichHandler
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ def setup_logging(config: Optional[Dict[str, Any]] = None) -> None:
     Set up logging configuration.
 
     Args:
-        config (Optional[Dict[str, Any]]): Custom logging configuration. 
+        config (Optional[Dict[str, Any]]): Custom logging configuration.
                                             If None, DEFAULT_LOGGING_CONFIG is used.
 
     Raises:
@@ -50,7 +50,7 @@ def setup_logging(config: Optional[Dict[str, Any]] = None) -> None:
                 'level': config['level'],
             },
             'ring_buffer': {
-                'class': 'utils.custom_logging.handlers.RingBuffer',
+                '()': RingBuffer,
                 'capacity': config['ring_buffer_capacity'],
                 'level': config['level'],
             },

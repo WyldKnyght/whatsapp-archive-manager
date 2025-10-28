@@ -1,3 +1,5 @@
 python-dateutil
-pytest 
+pytest
 typing-extensions
+rich
+chardet

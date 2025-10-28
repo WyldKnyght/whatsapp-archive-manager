@@ -3,7 +3,7 @@ from typing import List
 from src.modules.media_handler import MediaHandler
 from src.data_models.chat_metadata import ChatMetadata
 from src.data_models import Message
-from utils.text_utils import TextUtils
+from src.utils.text_utils import TextUtils
 
 class HTMLGenerator:
     """Responsible for generating HTML output"""

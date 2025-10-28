@@ -1,5 +1,5 @@
 from typing import List, Set
-from utils.text_utils import TextUtils
+from src.utils.text_utils import TextUtils
 
 
 class MessageExtractor:

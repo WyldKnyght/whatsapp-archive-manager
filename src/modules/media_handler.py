@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 from src.configuration_and_enums.special_messages import SpecialMessages
 from src.configuration_and_enums.media_type import MediaType
-from utils.text_utils import TextUtils
+from src.utils.text_utils import TextUtils
 
 
 class MediaHandler:

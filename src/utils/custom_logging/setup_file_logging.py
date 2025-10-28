@@ -1,13 +1,18 @@
 import os
 import logging
 from datetime import datetime
-from configs.env_settings import EnvSettings
 from .handlers import ConditionalFileHandler
 
-def setup_file_logging():
-    log_dir = os.path.join(os.path.dirname(EnvSettings.DB_PATH), 'logs')
+def default_log_dir():
+    # Use current directory or explicitly set environment variable
+    base_dir = os.getenv('LOG_BASEDIR', os.getcwd())
+    log_dir = os.path.join(base_dir, 'logs')
     os.makedirs(log_dir, exist_ok=True)
+    return log_dir
 
+
+def setup_file_logging():
+    log_dir = default_log_dir()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = os.path.join(log_dir, f'update_log_{timestamp}.log')
 
@@ -17,6 +22,7 @@ def setup_file_logging():
     file_handler.setFormatter(formatter)
 
     return file_handler
+
 
 def get_update_logger():
     logger = logging.getLogger('update_logger')

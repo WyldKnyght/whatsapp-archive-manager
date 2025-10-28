@@ -1,43 +1,78 @@
+# src/modules/message_parser.py
+import re
 from datetime import datetime
 from typing import List, Optional, Tuple
 from src.configuration_and_enums.special_messages import SpecialMessages
 from src.data_models import Message
-from utils.text_utils import TextUtils
+from src.utils.text_utils import TextUtils
+from src.configuration_and_enums.format_detector import FormatDetector, WhatsAppFormat
+
+
+class WhatsAppMessageParser:
+    def __init__(self, file_path: str, my_name: str = None):
+        self.file_path = file_path
+        self.encoding, _ = FormatDetector.detect_encoding(file_path)
+        self.format_type, self.confidence, _ = FormatDetector.detect_format(file_path, self.encoding)
+        if self.format_type == WhatsAppFormat.UNKNOWN:
+            raise ValueError(f"Unknown or unsupported WhatsApp format in {file_path}")
+        self.format_info = FormatDetector.get_format_info(self.format_type)
+        self.pattern = re.compile(self.format_info.regex)
+        self.date_format = f"{self.format_info.date_format} {self.format_info.time_format}"
+        self.my_name = my_name
+
+    def parse(self) -> List[Message]:
+        messages = []
+        current_lines = []
+        last_sender = None
+        with open(self.file_path, 'r', encoding=self.encoding, errors='replace') as f:
+            for line in f:
+                line = line.strip()
+                if match := self.pattern.match(line):
+                    if current_lines:
+                        messages.append(self._parse_message(current_lines, last_sender))
+                    groups = match.groups()
+                    # US_BRACKET_AMPMPM format has 5 groups
+                    if self.format_type == WhatsAppFormat.US_BRACKET_AMPMPM:
+                        date_str, time_str, am_pm, sender, content = groups
+                        full_time_str = f"{time_str}{am_pm}"
+                        current_lines = [f"{date_str} {full_time_str} - {sender}: {content}"]
+                        last_sender = sender
+                    elif len(groups) == 4:
+                        date_str, time_str, sender, content = groups
+                        current_lines = [f"{date_str} {time_str} - {sender}: {content}"]
+                        last_sender = sender
+                    else:
+                        # Fallback for future-proofing (should not occur)
+                        current_lines = [line]
+                elif current_lines:
+                    current_lines.append(line)
+            if current_lines:
+                messages.append(self._parse_message(current_lines, last_sender))
+        return messages
+
+    def _parse_message(self, message_lines: List[str], last_sender: str) -> Message:
+        parser = MessageParser(self.date_format, self.my_name or last_sender)
+        return parser.parse_message(message_lines, last_sender)
 
 
 class MessageParser:
-    """Responsible for parsing individual messages"""
-
     def __init__(self, date_format: str, my_name: str):
         self.date_format = date_format
         self.my_name = my_name
 
     def parse_message(self, message_lines: List[str], last_sender: str) -> Message:
-        """
-        Parse a message from one or more lines
-
-        Args:
-            message_lines: Lines that make up this message
-            last_sender: The sender of the previous message (for continuation messages)
-
-        Returns:
-            Parsed Message object
-        """
         first_line = TextUtils.clean_unicode(message_lines[0])
         rest_of_message = "\n".join(message_lines[1:]).strip()
-
         if parsed := self._try_parse_structured_message(first_line):
             timestamp_str, content = parsed
             timestamp, sender, message_content = self._parse_message_content(
                 timestamp_str, content, first_line, rest_of_message
             )
         else:
-            # Continuation of previous message
             timestamp = None
             timestamp_str = ''
             sender = last_sender
             message_content = f"{first_line}\n{rest_of_message}" if rest_of_message else first_line
-
         return Message(
             timestamp=timestamp,
             sender=sender,
@@ -46,19 +81,14 @@ class MessageParser:
         )
 
     def _try_parse_structured_message(self, line: str) -> Optional[Tuple[str, str]]:
-        """Try to parse a line with timestamp and content"""
-        # iOS format: [timestamp] content
         if line.startswith("[") and "]" in line:
             parts = line.split('] ', 1)
             if len(parts) == 2:
                 return parts[0].replace('[', ''), parts[1]
-
-        # Android format: timestamp - content
         if ' - ' in line and ': ' in line:
             parts = line.split(' - ', 1)
             if len(parts) == 2:
                 return parts[0], parts[1]
-
         return None
 
     def _parse_message_content(
@@ -68,24 +98,16 @@ class MessageParser:
         first_line: str,
         rest_of_message: str
     ) -> Tuple[Optional[datetime], str, str]:
-        """Parse the content portion of a message"""
         try:
             timestamp = datetime.strptime(timestamp_str, self.date_format)
-
-            # Handle "my" messages (prefix with .:)
             if content.startswith(SpecialMessages.MY_MESSAGE_PREFIX):
                 sender = self.my_name
                 message_content = content[3:]
             else:
                 sender, message_content = content.split(': ', 1)
-
-            # Combine with rest of message if present
             if rest_of_message:
                 message_content = f"{message_content}\n{rest_of_message}"
-
             return timestamp, sender.strip(), message_content.strip()
-
-        except ValueError:
-            # Failed to parse - treat as continuation
+        except Exception:
             full_content = f"{first_line}\n{rest_of_message}" if rest_of_message else first_line
             return None, '', full_content
