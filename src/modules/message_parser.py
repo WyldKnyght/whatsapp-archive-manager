@@ -1,4 +1,3 @@
-# src/modules/message_parser.py
 import re
 from datetime import datetime
 from typing import List, Optional, Tuple
@@ -6,6 +5,16 @@ from src.configuration_and_enums.special_messages import SpecialMessages
 from src.data_models import Message
 from src.utils.text_utils import TextUtils
 from src.configuration_and_enums.format_detector import FormatDetector, WhatsAppFormat
+
+def normalize_compact_time(time_str: str) -> str:
+    """
+    Converts '91312 PM' -> '09:13:12 PM'
+    """
+    if m := re.match(r'^(\d{1,2})(\d{2})(\d{2}) ?([AP]M)$', time_str.strip()):
+        hh, mm, ss, ampm = m.groups()
+        hh = hh.zfill(2)
+        return f"{hh}:{mm}:{ss} {ampm}"
+    return time_str
 
 class WhatsAppMessageParser:
     def __init__(self, file_path: str, my_name: str = None):
@@ -36,6 +45,11 @@ class WhatsAppMessageParser:
                     if self.format_type == WhatsAppFormat.US_BRACKET_AMPMPM:
                         date_str, time_str, am_pm, sender, content = groups
                         full_time_str = f"{time_str}{am_pm}"
+                        current_lines = [f"{date_str} {full_time_str} - {sender}: {content}"]
+                        last_sender = sender
+                    elif self.format_type == WhatsAppFormat.US_COMMA_COMPACT:
+                        date_str, time_str, sender, content = groups
+                        full_time_str = normalize_compact_time(time_str)
                         current_lines = [f"{date_str} {full_time_str} - {sender}: {content}"]
                         last_sender = sender
                     elif len(groups) == 4:
