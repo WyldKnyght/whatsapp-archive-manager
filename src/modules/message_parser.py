@@ -7,7 +7,6 @@ from src.data_models import Message
 from src.utils.text_utils import TextUtils
 from src.configuration_and_enums.format_detector import FormatDetector, WhatsAppFormat
 
-
 class WhatsAppMessageParser:
     def __init__(self, file_path: str, my_name: str = None):
         self.file_path = file_path
@@ -24,14 +23,16 @@ class WhatsAppMessageParser:
         messages = []
         current_lines = []
         last_sender = None
+        def clean_line(l):
+            return l.replace('\u202f', ' ').replace('\xa0', ' ')
         with open(self.file_path, 'r', encoding=self.encoding, errors='replace') as f:
-            for line in f:
-                line = line.strip()
-                if match := self.pattern.match(line):
+            lines = [clean_line(line.strip()) for line in f]
+            for line in lines:
+                match = self.pattern.match(line)
+                if match:
                     if current_lines:
                         messages.append(self._parse_message(current_lines, last_sender))
                     groups = match.groups()
-                    # US_BRACKET_AMPMPM format has 5 groups
                     if self.format_type == WhatsAppFormat.US_BRACKET_AMPMPM:
                         date_str, time_str, am_pm, sender, content = groups
                         full_time_str = f"{time_str}{am_pm}"
@@ -42,7 +43,6 @@ class WhatsAppMessageParser:
                         current_lines = [f"{date_str} {time_str} - {sender}: {content}"]
                         last_sender = sender
                     else:
-                        # Fallback for future-proofing (should not occur)
                         current_lines = [line]
                 elif current_lines:
                     current_lines.append(line)
@@ -53,7 +53,6 @@ class WhatsAppMessageParser:
     def _parse_message(self, message_lines: List[str], last_sender: str) -> Message:
         parser = MessageParser(self.date_format, self.my_name or last_sender)
         return parser.parse_message(message_lines, last_sender)
-
 
 class MessageParser:
     def __init__(self, date_format: str, my_name: str):

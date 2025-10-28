@@ -1,5 +1,3 @@
-# configuration_and_enums/format_detector.py
-
 import re
 from typing import Dict, Tuple, Optional, List
 from enum import Enum
@@ -143,16 +141,14 @@ class FormatDetector:
             regions=['Various']
         ),
         WhatsAppFormat.US_BRACKET_AMPMPM: FormatInfo(
-            # Handles [2022-05-05, 9:13:12 PM] Name: Message
-            regex=r'^\[(\d{4}-\d{2}-\d{2}),\s(\d{1,2}:\d{2}:\d{2})[\u202f\s]?([AP]M)\]\s([^:]+):\s(.+)$',
+            regex=r'^\[(\d{4}-\d{2}-\d{2}),\s(\d{1,2}:\d{2}:\d{2})\s?([AP]M)\]\s([^:]+):\s(.+)$',
             date_format='%Y-%m-%d',
-            time_format='%I:%M:%S%p',  # No space before %p, since AM/PM may be attached directly in some cases
+            time_format='%I:%M:%S%p',
             separator='] ',
             timestamp_wrapper='[]',
-            description='US/International bracket format with AM/PM (YYYY-MM-DD, h:mm:ssAM/PM) [with Unicode narrow space support]',
+            description='US/International bracket format with AM/PM (YYYY-MM-DD, h:mm:ssAM/PM)',
             regions=['Modern WhatsApp Export', 'US', 'International']
         ),
-
     }
 
     @staticmethod
@@ -181,7 +177,7 @@ class FormatDetector:
             encoding, _ = FormatDetector.detect_encoding(file_path)
         try:
             with open(file_path, 'r', encoding=encoding, errors='replace') as f:
-                lines = [f.readline().strip() for _ in range(sample_lines)]
+                lines = [f.readline().strip().replace('\u202f', ' ').replace('\xa0', ' ') for _ in range(sample_lines)]
         except Exception:
             return WhatsAppFormat.UNKNOWN, 0.0, {}
         lines = [line for line in lines if line and len(line) > 10]
