@@ -1,4 +1,5 @@
 # src/configuration_and_enums/whatsapp_formats.py
+
 from enum import Enum
 from dataclasses import dataclass
 from typing import Optional, List
@@ -16,10 +17,11 @@ class WhatsAppFormat(Enum):
     BRAZILIAN = "brazilian"
     INDIAN = "indian"
     GENERIC_24H = "generic_24h"
-    US_BRACKET_AMPMPM = "us_bracket_ampm"
+    US_BRACKET_AMPMPM = "us_bracket_ampmpm"
     CUSTOM_COMMA_TIME = "custom_comma_time"
     US_COMMA_COMPACT = "us_comma_compact"
     IOS_US_BRACKET_12H = "ios_us_bracket_12h"
+    US_COMPACT_NOSEP = "us_compact_nosep"
     UNKNOWN = "unknown"
 
 @dataclass

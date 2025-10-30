@@ -1,7 +1,8 @@
+# main.py
+
 from pathlib import Path
 from src.utils.custom_logging.setup_logging import setup_logging
 from src.main_orchastrator import WhatsAppChatConverter
-from src.modules.file_manager import FileManager
 
 import zipfile
 import tempfile

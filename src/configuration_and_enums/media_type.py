@@ -1,8 +1,10 @@
+# src/configuration_and_enums/media_type.py
+
 from enum import Enum
 from typing import List, Optional
 
 class MediaType(Enum):
-    """Enumeration of supported media types"""
+    """Enumeration of supported media types."""
     IMAGE = ('image', ['.png', '.jpg', '.jpeg', '.gif', '.bmp'])
     AUDIO = ('audio', ['.mp3', '.wav', '.ogg', '.opus'])
     VIDEO = ('video', ['.mp4', '.avi', '.mov', '.wmv'])
@@ -14,15 +16,13 @@ class MediaType(Enum):
 
     @classmethod
     def from_filename(cls, filename: str) -> Optional['MediaType']:
-        """Determine media type from filename extension"""
+        """Determine media type from filename extension."""
         lower_filename = filename.lower()
         return next(
             (
                 media_type
                 for media_type in cls
-                if any(
-                    lower_filename.endswith(ext) for ext in media_type.extensions
-                )
+                if any(lower_filename.endswith(ext) for ext in media_type.extensions)
             ),
             None,
         )

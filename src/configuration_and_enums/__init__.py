@@ -1,4 +1,5 @@
 # src/configuration_and_enums/__init__.py
+
 """
 Configuration and enumerations for the WhatsApp Archive Manager.
 
@@ -15,5 +16,5 @@ from .special_messages import SpecialMessages
 __all__ = [
     'DateFormats',
     'MediaType',
-    'SpecialMessages'
+    'SpecialMessages',
 ]

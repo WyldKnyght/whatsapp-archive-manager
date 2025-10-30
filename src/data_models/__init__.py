@@ -1,4 +1,5 @@
 # src/data_models/__init__.py
+
 """
 Data models for the WhatsApp Archive Manager.
 
@@ -12,5 +13,5 @@ from .chat_metadata import ChatMetadata
 
 __all__ = [
     'Message',
-    'ChatMetadata'
+    'ChatMetadata',
 ]

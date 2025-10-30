@@ -1,6 +1,7 @@
+# src/main_orchastrator.py
+
 from pathlib import Path
 from typing import List, Set
-from src.modules.date_format_detector import DateFormatDetector
 from src.modules.message_extractor import MessageExtractor
 from src.modules.message_grouper import MessageGrouper
 from src.modules.file_manager import FileManager
@@ -13,52 +14,61 @@ from src.configuration_and_enums.format_detector import FormatDetector, WhatsApp
 
 class WhatsAppChatConverter:
     """
-    Main class that orchestrates the conversion process
-    Uses dependency injection for all major components
+    Main class that orchestrates the conversion process.
+    Uses dependency injection for all major components.
     """
     def __init__(
         self,
-        date_detector: DateFormatDetector = None,
         message_extractor: MessageExtractor = None,
         message_grouper: MessageGrouper = None,
         file_manager: FileManager = None
     ):
-        self.date_detector = date_detector or DateFormatDetector()
         self.message_extractor = message_extractor or MessageExtractor()
         self.message_grouper = message_grouper or MessageGrouper()
         self.file_manager = file_manager or FileManager()
 
     def convert_chatfile_to_html(self, chat_txt_file: Path, output_path: Path = None) -> Path:
-        lines = chat_txt_file.read_text(encoding='utf-8').splitlines()
-        encoding, _ = FormatDetector.detect_encoding(chat_txt_file)
-        whatsapp_format, confidence, _ = FormatDetector.detect_format(chat_txt_file, encoding)
+        # Detect encoding and format
+        encoding, _ = FormatDetector.detect_encoding(str(chat_txt_file))
+        whatsapp_format, confidence, _ = FormatDetector.detect_format(str(chat_txt_file), encoding)
         print(f"Detected format: {whatsapp_format.value} (confidence: {confidence:.1%})")
 
-        chat_metadata = self._extract_chat_metadata(lines)
+        if whatsapp_format == WhatsAppFormat.UNKNOWN:
+            raise ValueError("Could not detect WhatsApp format in chat file")
+
+        # Get format info
+        format_info = FormatDetector.get_format_info(whatsapp_format)
+
+        # Read lines
+        lines = chat_txt_file.read_text(encoding=encoding).splitlines()
+
+        # Extract metadata using the detected format
+        chat_metadata = self._extract_chat_metadata(lines, format_info)
+
+        # Create parser with detected format
         message_parser = MessageParser(
             chat_metadata.date_format,
-            chat_metadata.my_name,
-            regex=FormatDetector.get_format_info(whatsapp_format).regex,
-            encoding=encoding
+            chat_metadata.my_name
         )
+
+        # Parse messages
         messages = self._parse_all_messages(lines, message_parser)
 
+        # Generate HTML
         media_handler = MediaHandler(chat_txt_file.parent)
         html_generator = HTMLGenerator()
         html_content = html_generator.generate_html(messages, chat_metadata, media_handler)
 
+        # Save output
         if output_path is None:
             version = self.file_manager.get_next_version_number(chat_txt_file.parent, chat_txt_file.stem)
             output_path = chat_txt_file.parent / f"{chat_txt_file.stem}_v{version}.html"
         output_path.write_text(html_content, encoding='utf-8')
         return output_path
 
-
-    def _extract_chat_metadata(self, lines: List[str]) -> ChatMetadata:
-        timestamps = self.message_extractor.extract_timestamps(lines)
-        date_format = self.date_detector.detect_format(timestamps)
-        if not date_format:
-            raise ValueError("Could not detect date format in chat file")
+    def _extract_chat_metadata(self, lines: List[str], format_info) -> ChatMetadata:
+        """Extract metadata using the detected format info."""
+        date_format = f"{format_info.date_format} {format_info.time_format}"
         participant_names = self.message_extractor.extract_participant_names(lines)
         my_name = self._determine_my_name(participant_names)
         return ChatMetadata(
@@ -96,9 +106,3 @@ class WhatsAppChatConverter:
             if message.sender:
                 last_sender = message.sender
         return messages
-
-# Utility function for standalone usage
-def process_chat(file_path):
-    encoding, _ = FormatDetector.detect_encoding(file_path)
-    whatsapp_format, confidence, _ = FormatDetector.detect_format(file_path, encoding)
-    print(f"Detected format: {whatsapp_format.value} (confidence: {confidence:.1%})")

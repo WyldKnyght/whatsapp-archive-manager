@@ -1,3 +1,5 @@
+# src/modules/message_parser.py
+
 import re
 from datetime import datetime
 from typing import List, Optional, Tuple
@@ -16,8 +18,84 @@ def normalize_compact_time(time_str: str) -> str:
         return f"{hh}:{mm}:{ss} {ampm}"
     return time_str
 
+class StructuredMessageStrategyInterface:
+    """Interface for extracting structured messages."""
+    def try_parse_structured_message(self, line: str) -> Optional[Tuple[str, str]]:
+        raise NotImplementedError
+
+class DefaultStructuredMessageStrategy(StructuredMessageStrategyInterface):
+    """Default implementation for WhatsApp style structured messages."""
+    def try_parse_structured_message(self, line: str) -> Optional[Tuple[str, str]]:
+        if line.startswith("[") and "]" in line:
+            parts = line.split('] ', 1)
+            if len(parts) == 2:
+                return parts[0].replace('[', ''), parts[1]
+        if ' - ' in line and ': ' in line:
+            parts = line.split(' - ', 1)
+            if len(parts) == 2:
+                return parts[0], parts[1]
+        return None
+
+class MessageParser:
+    """Handles parsing for individual WhatsApp messages, with strategy for structured content."""
+
+    def __init__(
+        self,
+        date_format: str,
+        my_name: str,
+        structured_strategy: StructuredMessageStrategyInterface = None
+    ):
+        self.date_format = date_format
+        self.my_name = my_name
+        self.structured_strategy = structured_strategy or DefaultStructuredMessageStrategy()
+
+    def parse_message(self, message_lines: List[str], last_sender: str) -> Message:
+        first_line = TextUtils.clean_unicode(message_lines[0])
+        rest_of_message = "\n".join(message_lines[1:]).strip()
+        if parsed := self.structured_strategy.try_parse_structured_message(
+            first_line
+        ):
+            timestamp_str, content = parsed
+            timestamp, sender, message_content = self._parse_message_content(
+                timestamp_str, content, first_line, rest_of_message
+            )
+        else:
+            timestamp = None
+            timestamp_str = ''
+            sender = last_sender
+            message_content = f"{first_line}\n{rest_of_message}" if rest_of_message else first_line
+        return Message(
+            timestamp=timestamp,
+            sender=sender,
+            content=message_content,
+            timestamp_str=timestamp_str
+        )
+
+    def _parse_message_content(
+        self,
+        timestamp_str: str,
+        content: str,
+        first_line: str,
+        rest_of_message: str
+    ) -> Tuple[Optional[datetime], str, str]:
+        try:
+            timestamp = datetime.strptime(timestamp_str, self.date_format)
+            if content.startswith(SpecialMessages.MY_MESSAGE_PREFIX):
+                sender = self.my_name
+                message_content = content[len(SpecialMessages.MY_MESSAGE_PREFIX):]
+            else:
+                sender, message_content = content.split(': ', 1)
+            if rest_of_message:
+                message_content = f"{message_content}\n{rest_of_message}"
+            return timestamp, sender.strip(), message_content.strip()
+        except Exception:
+            full_content = f"{first_line}\n{rest_of_message}" if rest_of_message else first_line
+            return None, '', full_content
+
 class WhatsAppMessageParser:
-    def __init__(self, file_path: str, my_name: str = None):
+    """Parses WhatsApp chat files, delegates format logic via strategies."""
+
+    def __init__(self, file_path: str, my_name: str = None, structured_strategy: StructuredMessageStrategyInterface = None):
         self.file_path = file_path
         self.encoding, _ = FormatDetector.detect_encoding(file_path)
         self.format_type, self.confidence, _ = FormatDetector.detect_format(file_path, self.encoding)
@@ -27,13 +105,16 @@ class WhatsAppMessageParser:
         self.pattern = re.compile(self.format_info.regex)
         self.date_format = f"{self.format_info.date_format} {self.format_info.time_format}"
         self.my_name = my_name
+        self.structured_strategy = structured_strategy or DefaultStructuredMessageStrategy()
 
     def parse(self) -> List[Message]:
         messages = []
         current_lines = []
         last_sender = None
+
         def clean_line(l):
-            return l.replace('\u202f', ' ').replace('\xa0', ' ')
+            return l.replace('\u202f', ' ').replace('\xa0', '')
+
         with open(self.file_path, 'r', encoding=self.encoding, errors='replace') as f:
             lines = [clean_line(line.strip()) for line in f]
             for line in lines:
@@ -65,62 +146,5 @@ class WhatsAppMessageParser:
         return messages
 
     def _parse_message(self, message_lines: List[str], last_sender: str) -> Message:
-        parser = MessageParser(self.date_format, self.my_name or last_sender)
+        parser = MessageParser(self.date_format, self.my_name or last_sender, self.structured_strategy)
         return parser.parse_message(message_lines, last_sender)
-
-class MessageParser:
-    def __init__(self, date_format: str, my_name: str):
-        self.date_format = date_format
-        self.my_name = my_name
-
-    def parse_message(self, message_lines: List[str], last_sender: str) -> Message:
-        first_line = TextUtils.clean_unicode(message_lines[0])
-        rest_of_message = "\n".join(message_lines[1:]).strip()
-        if parsed := self._try_parse_structured_message(first_line):
-            timestamp_str, content = parsed
-            timestamp, sender, message_content = self._parse_message_content(
-                timestamp_str, content, first_line, rest_of_message
-            )
-        else:
-            timestamp = None
-            timestamp_str = ''
-            sender = last_sender
-            message_content = f"{first_line}\n{rest_of_message}" if rest_of_message else first_line
-        return Message(
-            timestamp=timestamp,
-            sender=sender,
-            content=message_content,
-            timestamp_str=timestamp_str
-        )
-
-    def _try_parse_structured_message(self, line: str) -> Optional[Tuple[str, str]]:
-        if line.startswith("[") and "]" in line:
-            parts = line.split('] ', 1)
-            if len(parts) == 2:
-                return parts[0].replace('[', ''), parts[1]
-        if ' - ' in line and ': ' in line:
-            parts = line.split(' - ', 1)
-            if len(parts) == 2:
-                return parts[0], parts[1]
-        return None
-
-    def _parse_message_content(
-        self,
-        timestamp_str: str,
-        content: str,
-        first_line: str,
-        rest_of_message: str
-    ) -> Tuple[Optional[datetime], str, str]:
-        try:
-            timestamp = datetime.strptime(timestamp_str, self.date_format)
-            if content.startswith(SpecialMessages.MY_MESSAGE_PREFIX):
-                sender = self.my_name
-                message_content = content[3:]
-            else:
-                sender, message_content = content.split(': ', 1)
-            if rest_of_message:
-                message_content = f"{message_content}\n{rest_of_message}"
-            return timestamp, sender.strip(), message_content.strip()
-        except Exception:
-            full_content = f"{first_line}\n{rest_of_message}" if rest_of_message else first_line
-            return None, '', full_content

@@ -1,15 +1,43 @@
 import html
-from typing import List
+from typing import List, Optional
 from src.modules.media_handler import MediaHandler
 from src.data_models.chat_metadata import ChatMetadata
 from src.data_models import Message
 from src.utils.text_utils import TextUtils
 
-class HTMLGenerator:
-    """Responsible for generating HTML output"""
 
-    def __init__(self, css_template: str = None):
+class MessageHTMLRendererInterface:
+    """Interface for rendering message HTML blocks."""
+
+    def render(self, message: Message, sender_class: str, media_handler: MediaHandler) -> str:
+        raise NotImplementedError
+
+
+class DefaultMessageHTMLRenderer(MessageHTMLRendererInterface):
+    """Default renderer for user messages."""
+
+    def render(self, message: Message, sender_class: str, media_handler: MediaHandler) -> str:
+        timestamp_display = message.timestamp.strftime('%Y-%m-%d %H:%M') if message.timestamp else ''
+        media_embed = media_handler.create_media_embed(message.content, sender_class)
+        return (
+            f'<div class="message {sender_class}">'
+            f'<div class="sender">{html.escape(message.sender)}</div>'
+            f'<div class="timestamp">{timestamp_display}</div>'
+            f'<div class="content">{media_embed}</div>'
+            f'</div>'
+        )
+
+
+class HTMLGenerator:
+    """Responsible for generating HTML output."""
+
+    def __init__(
+        self,
+        css_template: Optional[str] = None,
+        message_renderer: Optional[MessageHTMLRendererInterface] = None
+    ):
         self.css_template = css_template or self._default_css()
+        self.message_renderer = message_renderer or DefaultMessageHTMLRenderer()
 
     def generate_html(
         self,
@@ -17,35 +45,26 @@ class HTMLGenerator:
         chat_metadata: ChatMetadata,
         media_handler: MediaHandler
     ) -> str:
-        """
-        Generate complete HTML document from messages
-
-        Args:
-            messages: List of Message objects
-            chat_metadata: Metadata about the chat
-            media_handler: Handler for media embeds
-
-        Returns:
-            Complete HTML document as string
-        """
+        """Generate complete HTML document from messages."""
         message_html = self._generate_message_html(messages, chat_metadata, media_handler)
-
-        return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Chat</title>
-    <style>
-        {self.css_template}
-    </style>
-</head>
-<body>
-    <div class="chat-container">
-        {message_html}
-    </div>
-</body>
-</html>"""
+        return (
+            "<!DOCTYPE html>\n"
+            "<html lang=\"en\">\n"
+            "<head>\n"
+            "    <meta charset=\"UTF-8\">\n"
+            "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+            "    <title>WhatsApp Chat</title>\n"
+            "    <style>\n"
+            f"{self.css_template}\n"
+            "    </style>\n"
+            "</head>\n"
+            "<body>\n"
+            "    <div class=\"chat-container\">\n"
+            f"{message_html}\n"
+            "    </div>\n"
+            "</body>\n"
+            "</html>"
+        )
 
     def _generate_message_html(
         self,
@@ -53,45 +72,26 @@ class HTMLGenerator:
         chat_metadata: ChatMetadata,
         media_handler: MediaHandler
     ) -> str:
-        """Generate HTML for all messages"""
+        """Generate HTML for all messages using renderer class."""
         html_parts = []
-
         for message in messages:
-            if message.is_system_message:
+            if getattr(message, "is_system_message", False):
                 html_parts.append(self._create_system_message_html(message))
             else:
                 sender_class = 'me' if message.sender == chat_metadata.my_name else 'other'
                 html_parts.append(
-                    self._create_user_message_html(message, sender_class, media_handler)
+                    self.message_renderer.render(message, sender_class, media_handler)
                 )
-
         return '\n'.join(html_parts)
 
     @staticmethod
     def _create_system_message_html(message: Message) -> str:
-        """Create HTML for system messages"""
+        """Create HTML for system messages."""
         return f'<div class="system-message">{TextUtils.escape_html(message.content)}</div>'
 
     @staticmethod
-    def _create_user_message_html(
-        message: Message,
-        sender_class: str,
-        media_handler: MediaHandler
-    ) -> str:
-        """Create HTML for user messages"""
-        timestamp_display = message.timestamp.strftime('%Y-%m-%d %H:%M') if message.timestamp else ''
-        media_embed = media_handler.create_media_embed(message.content, sender_class)
-
-        return f"""
-        <div class="message {sender_class}">
-            <div class="sender">{html.escape(message.sender)}</div>
-            <div class="timestamp">{timestamp_display}</div>
-            <div class="content">{media_embed}</div>
-        </div>"""
-
-    @staticmethod
     def _default_css() -> str:
-        """Return default CSS styling"""
+        """Return default CSS styling."""
         return """
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;

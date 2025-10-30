@@ -1,7 +1,9 @@
 # src/configuration_and_enums/whatsapp_format_patterns.py
+
 from typing import Dict
 from .whatsapp_formats import WhatsAppFormat, FormatInfo
 
+# Dictionary of supported WhatsApp format patterns.
 FORMATS: Dict[WhatsAppFormat, FormatInfo] = {
     WhatsAppFormat.ANDROID_US: FormatInfo(
         regex=r'^(\d{1,2}/\d{1,2}/\d{2,4}),?\s+(\d{1,2}:\d{2}\s*[AP]M)\s*-\s*([^:]+):\s*(.+)$',
@@ -120,25 +122,25 @@ FORMATS: Dict[WhatsAppFormat, FormatInfo] = {
         description='US/International bracket format with AM/PM (YYYY-MM-DD, h:mm:ssAM/PM)',
         regions=['Modern WhatsApp Export', 'US', 'International']
     ),
-        WhatsAppFormat.CUSTOM_COMMA_TIME: FormatInfo(
+    WhatsAppFormat.CUSTOM_COMMA_TIME: FormatInfo(
         regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}\s*[AP]M) ([\w .\'-]+) (.+)$',
         date_format='%Y-%m-%d',
-        time_format='%I%M%S %p',    # to parse '91312 PM' as 09:13:12 PM
+        time_format='%I%M%S %p',
         separator=' ',
         timestamp_wrapper=None,
         description='YYYY-MM-DD, HHMMSS AM/PM Name Message (no brackets, comma after date, no colon)',
         regions=['Export variant', 'Custom detected']
     ),
-        WhatsAppFormat.US_COMMA_COMPACT: FormatInfo(
-        regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}\s*[AP]M) ([\w .\'-]+) (.+)$',
+    WhatsAppFormat.US_COMMA_COMPACT: FormatInfo(
+        regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}[AP]M) (.+)$',
         date_format='%Y-%m-%d',
-        time_format='%I%M%S %p', # passing '91312 PM' style, will normalize below
+        time_format='%I%M%S%p',
         separator=' ',
         timestamp_wrapper=None,
-        description='US/Canada export (comma after date, compact time, no brackets)',
+        description='US/Canada WhatsApp export (YYYY-MM-DD, HHMMSSAM/PM Name Message)',
         regions=['US', 'Canada', 'WhatsApp direct']
     ),
-        WhatsAppFormat.IOS_US_BRACKET_12H: FormatInfo(
+    WhatsAppFormat.IOS_US_BRACKET_12H: FormatInfo(
         regex=r'^\[(\d{4}-\d{2}-\d{2}),[\s\u202f]+(\d{1,2}:\d{2}:\d{2})[\s\u202f]*([AP]M)\][\s\u202f]+([^:]+):[\s\u202f]*(.+)$',
         date_format='%Y-%m-%d',
         time_format='%I:%M:%S %p',
@@ -146,5 +148,14 @@ FORMATS: Dict[WhatsAppFormat, FormatInfo] = {
         timestamp_wrapper='[]',
         description='iOS/WhatsApp US format with brackets and Unicode spaces (YYYY-MM-DD, H:MM:SS AM/PM)',
         regions=['US', 'Canada', 'iOS exports']
+    ),
+    WhatsAppFormat.US_COMPACT_NOSEP: FormatInfo(
+        regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}[AP]M) ([^ ]+(?: [^ ]+)*) (.+)$',
+        date_format='%Y-%m-%d',
+        time_format='%I%M%S%p',
+        separator=' ',
+        timestamp_wrapper=None,
+        description='US/Canada WhatsApp export (no brackets, no colon, time as HHMMSSAM/PM)',
+        regions=['US', 'Canada', 'WhatsApp direct']
     ),
 }
