@@ -1,5 +1,6 @@
 # src/main_orchastrator.py
 
+import os
 from pathlib import Path
 from typing import List, Set
 from src.modules.message_extractor import MessageExtractor
@@ -10,13 +11,15 @@ from src.modules.html_generator import HTMLGenerator
 from src.modules.media_handler import MediaHandler
 from src.data_models.chat_metadata import ChatMetadata
 from src.data_models.message import Message
-from src.configuration_and_enums.format_detector import FormatDetector, WhatsAppFormat
+from src.configuration_and_enums.format_detector import FormatDetector, WhatsAppFormat, normalize_encoding
+
 
 class WhatsAppChatConverter:
     """
     Main class that orchestrates the conversion process.
     Uses dependency injection for all major components.
     """
+
     def __init__(
         self,
         message_extractor: MessageExtractor = None,
@@ -28,10 +31,20 @@ class WhatsAppChatConverter:
         self.file_manager = file_manager or FileManager()
 
     def convert_chatfile_to_html(self, chat_txt_file: Path, output_path: Path = None) -> Path:
+        # Check for invalid input
+        if not chat_txt_file.exists() or not chat_txt_file.is_file():
+            raise FileNotFoundError(f"Chat file {chat_txt_file} does not exist")
+
         # Detect encoding and format
+        print(f"Chat file path: {chat_txt_file}")
+        print(f"File exists: {os.path.exists(chat_txt_file)}")
         encoding, _ = FormatDetector.detect_encoding(str(chat_txt_file))
-        whatsapp_format, confidence, _ = FormatDetector.detect_format(str(chat_txt_file), encoding)
-        print(f"Detected format: {whatsapp_format.value} (confidence: {confidence:.1%})")
+        encoding = normalize_encoding(encoding)
+        encoding = normalize_encoding(encoding)
+        print(f"Detected encoding: {encoding}")
+        whatsapp_format, confidence, scores = FormatDetector.detect_format(str(chat_txt_file), encoding)
+        print(f"Detected format: {whatsapp_format}, confidence: {confidence}")
+        print(f"Format scores: {scores}")
 
         if whatsapp_format == WhatsAppFormat.UNKNOWN:
             raise ValueError("Could not detect WhatsApp format in chat file")
@@ -106,3 +119,4 @@ class WhatsAppChatConverter:
             if message.sender:
                 last_sender = message.sender
         return messages
+

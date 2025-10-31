@@ -22,6 +22,8 @@ class WhatsAppFormat(Enum):
     US_COMMA_COMPACT = "us_comma_compact"
     IOS_US_BRACKET_12H = "ios_us_bracket_12h"
     US_COMPACT_NOSEP = "us_compact_nosep"
+    CUSTOMCOMMATIME = "customcommatime"
+    BRACKETED_US = "bracketed_us"
     UNKNOWN = "unknown"
 
 @dataclass

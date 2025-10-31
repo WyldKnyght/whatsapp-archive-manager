@@ -50,6 +50,15 @@ FORMATS: Dict[WhatsAppFormat, FormatInfo] = {
         description='iOS 12-hour',
         regions=['US iOS']
     ),
+    WhatsAppFormat.IOS_US_BRACKET_12H: FormatInfo(
+        regex=r'^\[(\d{4}-\d{2}-\d{2}),[\s\u202f]+(\d{1,2}:\d{2}:\d{2})[\s\u202f]*([AP]M)\][\s\u202f]+([^:]+):[\s\u202f]*(.+)$',
+        date_format='%Y-%m-%d',
+        time_format='%I:%M:%S %p',
+        separator='] ',
+        timestamp_wrapper='[]',
+        description='iOS/WhatsApp US format with brackets and Unicode spaces (YYYY-MM-DD, H:MM:SS AM/PM)',
+        regions=['US', 'Canada', 'iOS exports']
+    ),
     WhatsAppFormat.EUROPEAN_DOT: FormatInfo(
         regex=r'^(\d{1,2}\.\d{1,2}\.\d{2,4}),?\s+(\d{2}:\d{2})\s*-\s*([^:]+):\s*(.+)$',
         date_format='%d.%m.%y',
@@ -123,7 +132,7 @@ FORMATS: Dict[WhatsAppFormat, FormatInfo] = {
         regions=['Modern WhatsApp Export', 'US', 'International']
     ),
     WhatsAppFormat.CUSTOM_COMMA_TIME: FormatInfo(
-        regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}\s*[AP]M) ([\w .\'-]+) (.+)$',
+        regex=r'^\d{4}-\d{2}-\d{2}, \d{6} [AP]M(?: [^ ]+)? .+',
         date_format='%Y-%m-%d',
         time_format='%I%M%S %p',
         separator=' ',
@@ -131,31 +140,41 @@ FORMATS: Dict[WhatsAppFormat, FormatInfo] = {
         description='YYYY-MM-DD, HHMMSS AM/PM Name Message (no brackets, comma after date, no colon)',
         regions=['Export variant', 'Custom detected']
     ),
-    WhatsAppFormat.US_COMMA_COMPACT: FormatInfo(
-        regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}[AP]M) (.+)$',
-        date_format='%Y-%m-%d',
-        time_format='%I%M%S%p',
-        separator=' ',
+    WhatsAppFormat.CUSTOM_COMMA_TIME: FormatInfo(
+        # Change regex to make sender optional (username may be missing)
+        regex=r'^\d{4}-\d{2}-\d{2}, \d{6} [AP]M(?: [^ ]+)? .+',
+        date_format="Y-m-d",
+        time_format="IMS p",
+        separator=" ",
         timestamp_wrapper=None,
-        description='US/Canada WhatsApp export (YYYY-MM-DD, HHMMSSAM/PM Name Message)',
-        regions=['US', 'Canada', 'WhatsApp direct']
+        description="YYYY-MM-DD, HHMMSS AMPM Name Message (sender optional)",
+        regions=["Export variant", "Custom detected"]
     ),
-    WhatsAppFormat.IOS_US_BRACKET_12H: FormatInfo(
-        regex=r'^\[(\d{4}-\d{2}-\d{2}),[\s\u202f]+(\d{1,2}:\d{2}:\d{2})[\s\u202f]*([AP]M)\][\s\u202f]+([^:]+):[\s\u202f]*(.+)$',
+    WhatsAppFormat.US_COMMA_COMPACT: FormatInfo(
+        regex=r'^\d{4}-\d{2}-\d{2}, \d{6} [AP]M(?: [^ ]+)? .+',
+        date_format="Y-m-d",
+        time_format="IMS p",
+        separator=" ",
+        timestamp_wrapper=None,
+        description="US/Canada WhatsApp export (sender optional)",
+        regions=["US", "Canada", "WhatsApp direct"]
+    ),
+    WhatsAppFormat.US_COMPACT_NOSEP: FormatInfo(
+        regex=r'^\d{4}-\d{2}-\d{2}, \d{6} [AP]M(?: [^ ]+)? .+',
+        date_format="Y-m-d",
+        time_format="IMS p",
+        separator=" ",
+        timestamp_wrapper=None,
+        description="US/Canada export no separator, sender optional",
+        regions=["US", "Canada", "WhatsApp direct"]
+    ),
+    WhatsAppFormat.BRACKETED_US: FormatInfo(
+        regex=r'^\[(?P<date>\d{4}-\d{2}-\d{2}), (?P<time>\d{1,2}:\d{2}:\d{2}\s*[AP]M)\] (?P<sender>[^:]+): (?P<message>.+)$',
         date_format='%Y-%m-%d',
         time_format='%I:%M:%S %p',
         separator='] ',
         timestamp_wrapper='[]',
-        description='iOS/WhatsApp US format with brackets and Unicode spaces (YYYY-MM-DD, H:MM:SS AM/PM)',
-        regions=['US', 'Canada', 'iOS exports']
-    ),
-    WhatsAppFormat.US_COMPACT_NOSEP: FormatInfo(
-        regex=r'^(\d{4}-\d{2}-\d{2}), (\d{6}[AP]M) ([^ ]+(?: [^ ]+)*) (.+)$',
-        date_format='%Y-%m-%d',
-        time_format='%I%M%S%p',
-        separator=' ',
-        timestamp_wrapper=None,
-        description='US/Canada WhatsApp export (no brackets, no colon, time as HHMMSSAM/PM)',
-        regions=['US', 'Canada', 'WhatsApp direct']
+        description='Bracketed WhatsApp export [YYYY-MM-DD, H:MM:SS AM/PM] Sender: Message',
+        regions=['US', 'iOS', 'Modern WhatsApp Export']
     ),
 }
