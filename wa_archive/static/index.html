@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp Archive</title>
+<style>
+:root{--bg:#efeae2;--panel:#fff;--text:#111b21;--muted:#667781;--line:#e9edef;--me:#d9fdd3;--them:#fff;--accent:#008069;--hl:#fff3a3}
+@media (prefers-color-scheme:dark){:root{--bg:#0b141a;--panel:#111b21;--text:#e9edef;--muted:#8696a0;--line:#222d34;--me:#005c4b;--them:#202c33;--accent:#00a884;--hl:#5a4d00}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{font:15px/1.4 system-ui,sans-serif;color:var(--text);background:var(--panel);display:flex}
+button,input,select{font:inherit;color:inherit}
+button{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
+input,select{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#side{width:300px;border-right:1px solid var(--line);display:flex;flex-direction:column;flex:none}
+#side header,#top{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+#side header h1{font-size:16px;margin:0;flex:1}
+#chatlist{overflow:auto;flex:1}
+.chat{padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer}
+.chat:hover,.chat.on{background:var(--line)}.chat small{color:var(--muted);display:block}
+#main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+#top{flex-wrap:wrap}#top .t{font-weight:600;flex:1;min-width:120px}
+#feed{flex:1;overflow:auto;background:var(--bg);padding:10px 8%}
+.day{text-align:center;margin:12px 0}.day span{background:var(--panel);color:var(--muted);font-size:12px;padding:3px 10px;border-radius:8px}
+.row{display:flex;margin:3px 0}.row.me{justify-content:flex-end}.row.sys{justify-content:center}
+.b{max-width:min(75%,560px);background:var(--them);padding:6px 9px;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 1px 1px rgba(0,0,0,.12)}
+.me .b{background:var(--me)}.sys .b{background:var(--panel);color:var(--muted);font-size:13px;text-align:center}
+.who{font-size:12px;font-weight:600;color:var(--accent)}.meta{font-size:11px;color:var(--muted);text-align:right;margin-top:2px}
+.b img,.b video{max-width:100%;max-height:320px;border-radius:6px;display:block;margin:2px 0}.b audio{width:260px;max-width:100%}
+.hl .b{outline:3px solid var(--hl);background:var(--hl)}
+.miss{color:var(--muted);font-style:italic}
+#panel{position:absolute;top:56px;right:8px;width:min(420px,96%);max-height:70%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);display:none;z-index:5}
+#panel .r{padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer}#panel .r:hover{background:var(--line)}
+#panel small{color:var(--muted)}mark{background:var(--hl);color:inherit}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);max-width:480px;width:92%}
+pre{white-space:pre-wrap;font-size:12px;background:var(--line);padding:8px;border-radius:6px;max-height:200px;overflow:auto}
+.empty{margin:auto;color:var(--muted);text-align:center;padding:40px}
+@media (max-width:700px){#side{position:absolute;inset:0;z-index:4;width:auto;background:var(--panel)}#side.hide{display:none}#feed{padding:8px}}
+</style></head><body>
+<aside id="side">
+  <header><h1>WhatsApp Archive</h1><button id="btnImport">Import</button></header>
+  <div id="chatlist"></div>
+</aside>
+<section id="main">
+  <div id="top" hidden>
+    <button class="ghost" id="back">☰</button>
+    <div class="t" id="title"></div>
+    <input type="date" id="jump" title="Jump to date">
+    <input type="search" id="q" placeholder="Search…" size="14">
+    <button class="ghost" id="filterBtn" title="Filters">⚙</button>
+  </div>
+  <div id="panel"></div>
+  <div id="feed"><div class="empty">Import a WhatsApp export (.zip) to begin.</div></div>
+</section>
+
+<dialog id="dlgImport">
+  <h3 style="margin-top:0">Import export</h3>
+  <p><input type="file" id="file" accept=".zip"></p>
+  <p><input id="cname" placeholder="Chat name (optional – defaults to file name)" style="width:100%"></p>
+  <div id="result"></div>
+  <p style="text-align:right"><button class="ghost" id="closeImp">Close</button> <button id="doImp">Import</button></p>
+</dialog>
+<dialog id="dlgFilter">
+  <h3 style="margin-top:0">Chat settings &amp; search filters</h3>
+  <p>My messages appear on the right: <select id="me"></select></p>
+  <p>Search only from: <select id="fsender"></select></p>
+  <p>Date range: <input type="date" id="ffrom"> – <input type="date" id="fto"></p>
+  <p style="text-align:right"><button id="closeF">Done</button></p>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+let chat=null, first=null, last=null, loading=false;
+const api=async(u,o)=>{const r=await fetch(u,o);if(!r.ok&&r.status!==400)throw new Error(r.status);return r.json()};
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const day=ts=>new Date(ts).toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+const hm=ts=>new Date(ts).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+const cur=m=>m.ts+'|'+m.id;
+
+async function loadChats(){
+  const list=await api('/api/chats'); const box=$('#chatlist'); box.replaceChildren();
+  if(!list.length){box.append(el('div','empty','No chats yet'));return list}
+  for(const c of list){
+    const d=el('div','chat'+(chat&&chat.id===c.id?' on':'')); d.append(el('b',null,c.name));
+    d.append(el('small',null,`${c.messages} messages · ${c.first_ts.slice(0,10)} → ${c.last_ts.slice(0,10)}`));
+    d.onclick=()=>openChat(c); box.append(d);
+  } return list;
+}
+async function openChat(c, around){
+  chat=c; $('#side').classList.add('hide'); $('#top').hidden=false; $('#title').textContent=c.name;
+  const feed=$('#feed'); feed.replaceChildren(); first=last=null;
+  const s=await api(`/api/chats/${c.id}/senders`); fillSenders(s);
+  const msgs=await api(`/api/chats/${c.id}/messages`+(around?`?around=${around}&limit=100`:'?limit=100'));
+  render(msgs,'append'); 
+  if(around){const t=document.getElementById('m'+around);t.classList.add('hl');t.scrollIntoView({block:'center'});}
+  else feed.scrollTop=feed.scrollHeight;
+  loadChats();
+}
+function fillSenders(s){
+  const me=$('#me'), fs=$('#fsender'); me.replaceChildren(new Option('(nobody)','')); fs.replaceChildren(new Option('Anyone',''));
+  for(const n of s){me.append(new Option(n,n));fs.append(new Option(n,n))}
+  me.value=chat.me||'';
+}
+function bubble(m){
+  const row=el('div','row '+(m.kind==='system'?'sys':(m.sender&&m.sender===chat.me?'me':'')));row.id='m'+m.id;
+  const b=el('div','b');
+  if(m.kind!=='system'&&m.sender&&m.sender!==chat.me)b.append(el('div','who',m.sender));
+  if(m.media_name){
+    if(m.media_id){
+      const u='/media/'+m.media_id, mt=m.media_mime||'';
+      if(mt.startsWith('image/')){const i=el('img');i.loading='lazy';i.src=u;i.onclick=()=>window.open(u);b.append(i)}
+      else if(mt.startsWith('video/')){const v=el('video');v.controls=true;v.preload='metadata';v.src=u;b.append(v)}
+      else if(mt.startsWith('audio/')){const a=el('audio');a.controls=true;a.preload='none';a.src=u;b.append(a)}
+      else{const a=el('a',null,'📎 '+m.media_name);a.href=u;a.target='_blank';b.append(a)}
+    } else b.append(el('div','miss','📎 '+m.media_name+' (file not in export)'));
+  }
+  if(m.body)b.append(el('div',null,m.body));
+  b.append(el('div','meta',hm(m.ts)+(m.edited?' · edited':'')));
+  row.append(b);return row;
+}
+function render(msgs,where){
+  if(!msgs.length)return; const feed=$('#feed'), frag=document.createDocumentFragment();
+  let prevDay=where==='append'?(last&&last.ts.slice(0,10)):null;
+  for(const m of msgs){
+    if(m.ts.slice(0,10)!==prevDay){const d=el('div','day');d.append(el('span',null,day(m.ts)));frag.append(d);prevDay=m.ts.slice(0,10)}
+    frag.append(bubble(m));
+  }
+  if(where==='append'){feed.append(frag);last=msgs[msgs.length-1];if(!first)first=msgs[0]}
+  else{const h=feed.scrollHeight;feed.prepend(frag);feed.scrollTop+=feed.scrollHeight-h;first=msgs[0]}
+}
+$('#feed').addEventListener('scroll',async e=>{
+  const f=e.target; if(!chat||loading||!first)return;
+  if(f.scrollTop<150){loading=true;const r=await api(`/api/chats/${chat.id}/messages?before=${encodeURIComponent(cur(first))}&limit=100`);render(r,'prepend');loading=false}
+  else if(f.scrollHeight-f.scrollTop-f.clientHeight<300){loading=true;const r=await api(`/api/chats/${chat.id}/messages?after=${encodeURIComponent(cur(last))}&limit=100`);render(r,'append');loading=false}
+});
+$('#jump').onchange=async e=>{ if(!e.target.value)return;
+  const r=await api(`/api/chats/${chat.id}/messages?date=${e.target.value}&limit=100`);
+  if(r.length){await openChat(chat,r[0].id)} };
+async function doSearch(){
+  const t=$('#q').value.trim(), p=$('#panel'); if(!t){p.style.display='none';return}
+  const qs=new URLSearchParams({q:t}); if($('#fsender').value)qs.set('sender',$('#fsender').value);
+  if($('#ffrom').value)qs.set('from',$('#ffrom').value); if($('#fto').value)qs.set('to',$('#fto').value);
+  const r=await api(`/api/chats/${chat.id}/search?`+qs); p.replaceChildren(); p.style.display='block';
+  if(!r.length)p.append(el('div','r','No matches'));
+  for(const x of r){
+    const d=el('div','r'); d.append(el('small',null,`${x.sender||'system'} · ${new Date(x.ts).toLocaleString()}`)); 
+    const line=el('div'); x.snippet.split(/(\[\[.*?\]\])/).forEach(s=>{
+      if(s.startsWith('[[')){line.append(el('mark',null,s.slice(2,-2)))}else line.append(document.createTextNode(s))});
+    d.append(line); d.onclick=()=>{p.style.display='none';openChat(chat,x.id)}; p.append(d);
+  }
+}
+let st; $('#q').oninput=()=>{clearTimeout(st);st=setTimeout(doSearch,250)};
+$('#filterBtn').onclick=()=>$('#dlgFilter').showModal();
+$('#closeF').onclick=async()=>{ chat.me=$('#me').value||null;
+  await api(`/api/chats/${chat.id}/me`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({me:chat.me})});
+  $('#dlgFilter').close(); openChat(chat); doSearch() };
+$('#back').onclick=()=>$('#side').classList.remove('hide');
+$('#btnImport').onclick=()=>{$('#result').replaceChildren();$('#dlgImport').showModal()};
+$('#closeImp').onclick=()=>$('#dlgImport').close();
+$('#doImp').onclick=async()=>{
+  const f=$('#file').files[0], res=$('#result'); if(!f){res.textContent='Choose a .zip first.';return}
+  const fd=new FormData(); fd.append('file',f); fd.append('chat_name',$('#cname').value);
+  res.textContent='Importing…'; $('#doImp').disabled=true;
+  try{ const r=await api('/api/import',{method:'POST',body:fd}); res.replaceChildren();
+    if(r.status==='failed'){res.append(el('b',null,'Failed: '+r.error))}
+    else if(r.status==='already_imported'){res.append(el('b',null,'Already imported. Nothing changed.'))}
+    else{res.append(el('b',null,`Imported “${r.chat_name}”`));
+      res.append(el('div',null,`${r.new_messages} new · ${r.duplicates_skipped} duplicates skipped · ${r.media.extracted} media files · date order ${r.date_order}`));
+      if(r.warnings.length)res.append(el('pre',null,r.warnings.join('\n')));
+      if(r.media.rejected.length)res.append(el('pre',null,'Rejected: '+JSON.stringify(r.media.rejected,null,1)));
+      const l=await loadChats(); const c=l.find(x=>x.id===r.chat_id); if(c)openChat(c); }
+  }catch(e){res.textContent='Error: '+e.message} $('#doImp').disabled=false;
+};
+loadChats();
+</script></body></html>
